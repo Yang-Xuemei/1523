@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover"
+    />
+    <meta http-equiv="X-UA-Compatible" content="ie=edge" />
+    <!-- Taro H5 entry template. REQUIRED: without src/index.html Taro's H5 build
+         emits no index.html, so the dev server serves a directory listing at /
+         and the preview shows "listing directory /" instead of the app. -->
+    <title>WeChat MiniApp</title>
+    <script><%= htmlWebpackPlugin.options.script %></script>
+    <!-- AutoAgent platform preview-ready signal + in-preview chat bubble/inspector.
+         Baked into the template (not the platform's post-build injection) on purpose:
+         Taro/webpack --watch does not recompile dist/index.html when this template
+         changes after the dev server is already up, so the post-hoc bubble-popup
+         injection never reaches the served page and the platform preview overlay
+         ("正在为您生成应用...") only clears via a ~2min fallback timeout. The asset
+         lives on a stable, env-independent CDN, so a cross-origin <script src> works
+         in every environment. Having it present here also makes the platform's
+         insert_bubble_popup a no-op (detected as already present). -->
+    <script src="https://g.alicdn.com/mindopt/auto-agent-popup/1.0.7/bubble-popup.min.js"></script>
+    <script>
+      // Fallback preview-ready signal. The platform dismisses the preview overlay
+      // only when the iframe posts BUBBLE_POPUP_READY / INSPECTOR_READY; the CDN
+      // script above normally does this, but its readiness detection targets the
+      // standard #root mount point while Taro H5 mounts into #app. To guarantee the
+      // overlay clears the moment the app renders, post the signal ourselves as soon
+      // as Taro inserts its first node into #app. Idempotent with the CDN script's
+      // own signal (the platform's handleAppReady only acts once).
+      (function () {
+        if (window.parent === window) return; // not framed: nothing to notify
+        var notify = function () {
+          try {
+            window.parent.postMessage({ type: 'BUBBLE_POPUP_READY' }, '*');
+          } catch (e) {}
+        };
+        var watch = function () {
+          var app = document.getElementById('app');
+          if (!app) {
+            window.requestAnimationFrame(watch); // #app not parsed yet
+            return;
+          }
+          if (app.childNodes.length > 0) {
+            notify();
+            return;
+          }
+          var obs = new MutationObserver(function () {
+            if (app.childNodes.length > 0) {
+              obs.disconnect();
+              notify();
+            }
+          });
+          obs.observe(app, { childList: true });
+        };
+        if (document.readyState === 'loading') {
+          document.addEventListener('DOMContentLoaded', watch);
+        } else {
+          watch();
+        }
+      })();
+    </script>
+  </head>
+  <body>
+    <div id="app"></div>
+  </body>
+</html>
